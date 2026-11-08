@@ -6,12 +6,13 @@ import (
 	"time"
 )
 
+var client = http.Client{
+		Timeout: 10 * time.Second,
+}
+
 func checkURL(url string) string {
 	start := time.Now()
 
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
 	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Sprintf("URL: %s | Status: DOWN | Error: %v | in: %v", url, err, time.Since(start))
