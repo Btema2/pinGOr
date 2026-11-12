@@ -1,0 +1,11 @@
+# Targets file
+# Rename to targets.txt to use
+# You can use comments by adding "#" symbol
+# New line = new url to ping
+https://google.com
+https://github.com
+https://cloudflare.com
+https://go.dev
+https://wikipedia.org
+https://google.com/404notfound
+https://ejrmjikemrcjikemije.com
