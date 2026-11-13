@@ -3,26 +3,51 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-	"log"
 )
 
 var client = http.Client{
 	Timeout: 10 * time.Second,
 }
 
-func checkURL(url string) string {
+type Result struct {
+	URL        string
+	Status     string
+	Duration   time.Duration
+	Err        error
+	StatusCode int
+}
+
+func (result Result) String() string {
+	if result.Err == nil {
+		return fmt.Sprintf("URL: %s | Status: %s | in: %v", result.URL, result.Status, result.Duration.Round(time.Millisecond))
+	}
+	return fmt.Sprintf("URL: %s | Status: %v | in: %v", result.URL, result.Err, result.Duration.Round(time.Millisecond))
+}
+
+func checkURL(url string) Result {
 	start := time.Now()
 	resp, err := client.Get(url)
 	if err != nil {
-		return fmt.Sprintf("URL: %s | Status: DOWN | Error: %v | in: %v", url, err, time.Since(start))
+		return Result{
+			URL:      url,
+			Status:   "DOWN",
+			Duration: time.Since(start),
+			Err:      err,
+		}
 	}
 	defer resp.Body.Close()
 
-	return fmt.Sprintf("URL: %s | Status: %s | in: %v", url, resp.Status, time.Since(start))
+	return Result{
+		URL:        url,
+		Status:     resp.Status,
+		Duration:   time.Since(start),
+		StatusCode: resp.StatusCode,
+	}
 }
 
 func readFile(filename string) ([]string, error) {
@@ -36,11 +61,13 @@ func readFile(filename string) ([]string, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		target := strings.TrimSpace(scanner.Text())
-		if target == "" || strings.HasPrefix(target, "#") {continue}
+		if target == "" || strings.HasPrefix(target, "#") {
+			continue
+		}
 		targets = append(targets, target)
 	}
 	err = scanner.Err()
-	
+
 	return targets, err
 }
 
@@ -51,14 +78,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	results := make(chan string, len(targets))
+	downCount := 0
+	errorCount := 0
+	okCount := 0
+	results := make(chan Result, len(targets))
 	for _, url := range targets {
 		go func() {
 			results <- checkURL(url)
 		}()
 	}
 	for range targets {
-		fmt.Println(<-results)
+		res := <-results
+		fmt.Println(res)
+		if res.Err != nil {
+			downCount++
+		} else if res.StatusCode >= 400 {
+			errorCount++
+		} else {
+			okCount++
+		}
+
 	}
-	fmt.Println("Finished in", time.Since(start))
+	fmt.Println("Finished in", time.Since(start), "| OK:", okCount, "| Error:", errorCount, "| DOWN:", downCount)
 }
