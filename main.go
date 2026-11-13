@@ -50,8 +50,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	results := make(chan string, len(targets))
 	for _, url := range targets {
-		fmt.Println(checkURL(url))
+		go func() {
+			results <- checkURL(url)
+		}()
+	}
+	for range targets {
+		fmt.Println(<-results)
 	}
 	fmt.Println("Finished in", time.Since(start))
 }
